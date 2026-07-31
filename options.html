@@ -32,11 +32,7 @@
             margin-bottom: 24px;
         }
 
-        .filter-group {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
+        .filter-group { display: flex; gap: 8px; margin-bottom: 20px; }
         .btn-filter {
             padding: 6px 16px;
             border-radius: 20px;
@@ -48,13 +44,43 @@
             color: #475569;
             transition: all 0.2s;
         }
-        .btn-filter.active {
-            background: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }
+        .btn-filter.active { background: #2563eb; color: white; border-color: #2563eb; }
 
         .chart-container { position: relative; height: 320px; }
+
+        /* 冷库与白名单样式 */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .btn-action {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .btn-action:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .item-list { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 8px; }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px; }
+        .btn-small {
+            border: 1px solid #cbd5e1;
+            background: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .btn-small.pinned { background: #fef3c7; border-color: #f59e0b; color: #b45309; }
     </style>
 </head>
 <body>
@@ -66,12 +92,10 @@
         </div>
     </div>
 
-    <!-- 图表分析卡片 -->
+    <!-- 1. 图表分析卡片 -->
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="section-header">
             <h3 style="margin: 0; font-size: 16px;">📊 Top Most Visited Bookmarks</h3>
-
-            <!-- 时间维度选择器 -->
             <div class="filter-group">
                 <button class="btn-filter active" data-range="1">24 Hours</button>
                 <button class="btn-filter" data-range="7">7 Days</button>
@@ -79,10 +103,25 @@
                 <button class="btn-filter" data-range="all">All Time</button>
             </div>
         </div>
-
         <div class="chart-container">
             <canvas id="topChart"></canvas>
         </div>
+    </div>
+
+    <!-- 2. 冷库归档卡片 -->
+    <div class="card">
+        <div class="section-header">
+            <div>
+                <h3 style="margin: 0; font-size: 16px;">🧊 Cold Vault Archiver</h3>
+                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                    Bookmarks unvisited for > 30 days (excluding Whitelisted ones)
+                </div>
+            </div>
+            <button id="btn-archive-all" class="btn-action" disabled>Move to Cold Vault</button>
+        </div>
+        <ul id="cold-list" class="item-list">
+            <div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">Scanning cold bookmarks...</div>
+        </ul>
     </div>
 </div>
 

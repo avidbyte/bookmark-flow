@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "BookmarkFlow - Smart LRU Bookmark Manager",
+  "version": "1.0.0",
+  "description": "Auto-decay clutter and keep your frequently used bookmarks flowing at your fingertips.",
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "history"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "BookmarkFlow"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}

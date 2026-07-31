@@ -12,6 +12,7 @@
     "default_popup": "popup.html",
     "default_title": "BookmarkFlow"
   },
+  "options_page": "options.html",
   "background": {
     "service_worker": "background.js"
   },

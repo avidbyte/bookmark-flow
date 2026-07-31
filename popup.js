@@ -66,3 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 });
+
+document.getElementById('open-dashboard').addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+});

@@ -2,7 +2,7 @@ let chartInstance = null;
 let currentRange = '1';
 let coldBookmarkIds = [];
 
-// 通用工具：递归获取所有书签节点（消除重复代码警告）
+// 通用工具：递归获取所有书签节点
 function getAllBookmarks(nodes) {
     const allBookmarks = [];
     function traverse(node) {
@@ -24,14 +24,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-run-sort')?.addEventListener('click', runSortNow);
 });
 
-/* ================= 1. 图表部分 (已增强时间维度支持) ================= */
+/* ================= 1. 图表部分 ================= */
 function initFilters() {
     const buttons = document.querySelectorAll('.btn-filter:not(select)');
     const yearSelect = document.getElementById('year-filter');
 
     if (!yearSelect) return;
 
-    // 动态生成年份下拉菜单（从今年开始向后倒推 5 年）
     const currentYear = new Date().getFullYear();
     yearSelect.innerHTML = '<option value="" disabled selected>By Year...</option>';
     for (let y = currentYear; y >= currentYear - 4; y--) {
@@ -41,13 +40,12 @@ function initFilters() {
         yearSelect.appendChild(opt);
     }
 
-    // 普通快捷按钮点击事件
     buttons.forEach(btn => {
         btn.addEventListener('click', (e) => {
             const target = e.currentTarget;
             buttons.forEach(b => b.classList.remove('active'));
             yearSelect.classList.remove('active');
-            yearSelect.selectedIndex = 0; // 重置下拉框
+            yearSelect.selectedIndex = 0;
 
             target.classList.add('active');
             currentRange = target.getAttribute('data-range') || '1';
@@ -55,13 +53,12 @@ function initFilters() {
         });
     });
 
-    // 具体年份下拉框切换事件
     yearSelect.addEventListener('change', (e) => {
         const target = e.target;
         buttons.forEach(b => b.classList.remove('active'));
         yearSelect.classList.add('active');
 
-        currentRange = target.value; // 如 "year_2026"
+        currentRange = target.value;
         loadAnalytics(currentRange);
     });
 }
@@ -77,7 +74,6 @@ function loadAnalytics(range) {
         let startTime = 0;
         let endTime = Infinity;
 
-        // 🎯 判断并精确计算时间区间
         if (range.startsWith('year_')) {
             const targetYear = parseInt(range.split('_')[1], 10);
             startTime = new Date(targetYear, 0, 1, 0, 0, 0).getTime();
@@ -155,14 +151,11 @@ async function initFolderSortSettings() {
     const radios = document.querySelectorAll('input[name="sortMode"]');
     if (!folderList) return;
 
-    // 读取已保存的设置
     const config = await chrome.storage.local.get(['sortMode', 'selectedFolders']);
     const savedMode = config.sortMode || 'exclude';
-    // 💡 修复 Argument types do not match parameters 警告
     const selectedArray = Array.isArray(config.selectedFolders) ? config.selectedFolders : [];
     const selectedFolders = new Set(selectedArray);
 
-    // 设置 Radio 状态
     radios.forEach(r => {
         const input = r;
         input.checked = (input.value === savedMode);
@@ -172,7 +165,6 @@ async function initFolderSortSettings() {
         });
     });
 
-    // 获取 Chrome 文件夹列表
     chrome.bookmarks.getTree(tree => {
         const folders = [];
         function traverse(node, path = '') {
@@ -214,23 +206,49 @@ async function initFolderSortSettings() {
     });
 }
 
-// 点击手动跑一次重排
-function runSortNow() {
+// ⚡ 手动重排按钮逻辑（已注入超时保护）
+async function runSortNow() {
     const btn = document.getElementById('btn-run-sort');
     if (!btn) return;
+
     btn.disabled = true;
+    const originalText = btn.innerText;
     btn.innerText = 'Sorting...';
 
-    // 💡 修复 Unused parameter & Promise returned from sendMessage is ignored 警告
-    chrome.runtime.sendMessage({ action: 'triggerManualSort' }).then(() => {
+    // 8 秒超时强制恢复机制
+    let isFinished = false;
+    const timeoutTimer = setTimeout(() => {
+        if (!isFinished) {
+            btn.disabled = false;
+            btn.innerText = originalText;
+            alert('Sorting is taking longer than expected. Please check Service Worker logs.');
+        }
+    }, 8000);
+
+    try {
+        const response = await chrome.runtime.sendMessage({ action: 'triggerManualSort' });
+        isFinished = true;
+        clearTimeout(timeoutTimer);
+
+        if (response && response.status === 'success') {
+            btn.innerText = 'Done!';
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }, 1200);
+        } else {
+            alert('Sort failed: ' + (response?.error || 'Unknown error'));
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    } catch (err) {
+        isFinished = true;
+        clearTimeout(timeoutTimer);
+        console.error('Run sort error:', err);
+        alert('Failed to execute sort process.');
         btn.disabled = false;
-        btn.innerText = 'Run Sort Now';
-        alert('Folder bookmarks reordered successfully according to pts!');
-    }).catch(err => {
-        btn.disabled = false;
-        btn.innerText = 'Run Sort Now';
-        console.error(err);
-    });
+        btn.innerText = originalText;
+    }
 }
 
 /* ================= 3. 🧊 冷库归档部分 ================= */
@@ -310,7 +328,6 @@ function archiveColdBookmarks() {
     archiveBtn.disabled = true;
     archiveBtn.innerText = 'Archiving...';
 
-    // 💡 修复 Promise 忽略与响应类型检查警告
     chrome.runtime.sendMessage({ action: 'archiveBookmarks', bookmarkIds: coldBookmarkIds }).then((response) => {
         if (response && response.status === 'success') {
             alert(`Successfully moved ${coldBookmarkIds.length} cold bookmarks to Cold Vault!`);

@@ -6,7 +6,8 @@
   "permissions": [
     "bookmarks",
     "storage",
-    "history"
+    "history",
+    "alarms"
   ],
   "action": {
     "default_popup": "popup.html",

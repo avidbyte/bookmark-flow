@@ -3,85 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>BookmarkFlow - Dashboard</title>
+    <link rel="stylesheet" href="options.css">
     <script src="chart.min.js"></script>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
-            margin: 0;
-            padding: 40px;
-        }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        .title { font-size: 24px; font-weight: bold; }
-        .sub { color: #64748b; font-size: 14px; margin-top: 4px; }
-
-        .card {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 24px;
-        }
-
-        .filter-group { display: flex; gap: 8px; margin-bottom: 20px; }
-        .btn-filter {
-            padding: 6px 16px;
-            border-radius: 20px;
-            border: 1px solid #cbd5e1;
-            background: white;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            color: #475569;
-            transition: all 0.2s;
-        }
-        .btn-filter.active { background: #2563eb; color: white; border-color: #2563eb; }
-
-        .chart-container { position: relative; height: 320px; }
-
-        /* 冷库与白名单样式 */
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .btn-action {
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-        }
-        .btn-action:disabled { background: #cbd5e1; cursor: not-allowed; }
-        .item-list { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow-y: auto; border: 1px solid #f1f5f9; border-radius: 8px; }
-        .item-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 13px;
-        }
-        .item-row:last-child { border-bottom: none; }
-        .item-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px; }
-        .btn-small {
-            border: 1px solid #cbd5e1;
-            background: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-        }
-        .btn-small.pinned { background: #fef3c7; border-color: #f59e0b; color: #b45309; }
-    </style>
 </head>
 <body>
 <div class="container">
@@ -92,36 +15,66 @@
         </div>
     </div>
 
-    <!-- 1. 图表分析卡片 -->
+    <!-- 1. 柱状图 -->
     <div class="card">
         <div class="section-header">
-            <h3 style="margin: 0; font-size: 16px;">📊 Top Most Visited Bookmarks</h3>
+            <h3 class="card-title">📊 Top Most Visited Bookmarks</h3>
             <div class="filter-group">
                 <button class="btn-filter active" data-range="1">24 Hours</button>
                 <button class="btn-filter" data-range="7">7 Days</button>
                 <button class="btn-filter" data-range="30">30 Days</button>
+                <button class="btn-filter" data-range="90">Quarter (90D)</button>
+                <button class="btn-filter" data-range="365">1 Year</button>
                 <button class="btn-filter" data-range="all">All Time</button>
+                <!-- 💡 增加 aria-label，消除 Missing associated label 告警 -->
+                <select id="year-filter" class="btn-filter select-filter" aria-label="Filter by year">
+                    <option value="" disabled selected>By Year...</option>
+                </select>
             </div>
         </div>
-        <div class="chart-container">
-            <canvas id="topChart"></canvas>
-        </div>
+        <div class="chart-container"><canvas id="topChart"></canvas></div>
     </div>
 
-    <!-- 2. 冷库归档卡片 -->
+    <!-- 2. ⚡ 文件夹自动排序配置卡片 -->
     <div class="card">
         <div class="section-header">
             <div>
-                <h3 style="margin: 0; font-size: 16px;">🧊 Cold Vault Archiver</h3>
-                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+                <h3 class="card-title">⚡ Folder Auto-Sort Rules</h3>
+                <div class="card-desc">
+                    Auto-reorder bookmarks inside folders by pts hourly & on startup.
+                </div>
+            </div>
+            <button id="btn-run-sort" class="btn-action">Run Sort Now</button>
+        </div>
+
+        <div class="radio-group">
+            <label class="radio-label">
+                <input type="radio" name="sortMode" value="exclude" checked>
+                <span><b>Mode A (Exclude):</b> Sort ALL folders, EXCEPT selected ones below</span>
+            </label>
+            <label class="radio-label">
+                <input type="radio" name="sortMode" value="include">
+                <span><b>Mode B (Include):</b> ONLY sort selected folders below</span>
+            </label>
+        </div>
+
+        <div id="folder-list" class="item-list">
+            <div class="empty-state">Loading folders...</div>
+        </div>
+    </div>
+
+    <!-- 3. 冷库归档 -->
+    <div class="card">
+        <div class="section-header">
+            <div>
+                <h3 class="card-title">🧊 Cold Vault Archiver</h3>
+                <div class="card-desc">
                     Bookmarks unvisited for > 30 days (excluding Whitelisted ones)
                 </div>
             </div>
             <button id="btn-archive-all" class="btn-action" disabled>Move to Cold Vault</button>
         </div>
-        <ul id="cold-list" class="item-list">
-            <div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">Scanning cold bookmarks...</div>
-        </ul>
+        <ul id="cold-list" class="item-list"></ul>
     </div>
 </div>
 

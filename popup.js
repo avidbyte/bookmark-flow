@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const hotList = document.getElementById('hot-list');
+    if (!hotList) return;
 
     chrome.bookmarks.getTree(async (nodes) => {
         const allBookmarks = [];
 
         function traverse(node) {
+            if (node.title === '🧊 BookmarkFlow Cold Vault') return;
             if (node.url) {
                 allBookmarks.push(node);
             }
@@ -55,18 +57,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="score">${bm.visits > 0 ? bm.visits + ' pts' : 'NEW'}</div>
       `;
 
+            // 💡 修复 Missing await：给点击回调函数加上 async
             li.addEventListener('click', async () => {
                 // 先发送消息通知后台更新，等待完成再跳转
                 await new Promise((resolve) => {
                     chrome.runtime.sendMessage({ action: 'recordVisit', bookmarkId: bm.id }, resolve);
                 });
-                chrome.tabs.create({ url: bm.url });
+                await chrome.tabs.create({ url: bm.url });
             });
             hotList.appendChild(li);
         });
     });
 });
 
-document.getElementById('open-dashboard').addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+// 💡 修复 Promise returned from openOptionsPage is ignored：给回调加上 async 并 await
+document.getElementById('open-dashboard')?.addEventListener('click', async () => {
+    await chrome.runtime.openOptionsPage().catch(console.error);
 });

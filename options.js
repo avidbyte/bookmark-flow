@@ -2,54 +2,108 @@ let chartInstance = null;
 let currentRange = '1';
 let coldBookmarkIds = [];
 
-document.addEventListener('DOMContentLoaded', () => {
+// 通用工具：递归获取所有书签节点（消除重复代码警告）
+function getAllBookmarks(nodes) {
+    const allBookmarks = [];
+    function traverse(node) {
+        if (node.title === '🧊 BookmarkFlow Cold Vault') return;
+        if (node.url) allBookmarks.push(node);
+        if (node.children) node.children.forEach(traverse);
+    }
+    nodes.forEach(traverse);
+    return allBookmarks;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     initFilters();
     loadAnalytics('1');
-    loadColdBookmarks();
+    await loadColdBookmarks().catch(console.error);
+    await initFolderSortSettings().catch(console.error);
 
-    document.getElementById('btn-archive-all').addEventListener('click', archiveColdBookmarks);
+    document.getElementById('btn-archive-all')?.addEventListener('click', archiveColdBookmarks);
+    document.getElementById('btn-run-sort')?.addEventListener('click', runSortNow);
 });
 
+/* ================= 1. 图表部分 (已增强时间维度支持) ================= */
 function initFilters() {
-    const buttons = document.querySelectorAll('.btn-filter');
+    const buttons = document.querySelectorAll('.btn-filter:not(select)');
+    const yearSelect = document.getElementById('year-filter');
+
+    if (!yearSelect) return;
+
+    // 动态生成年份下拉菜单（从今年开始向后倒推 5 年）
+    const currentYear = new Date().getFullYear();
+    yearSelect.innerHTML = '<option value="" disabled selected>By Year...</option>';
+    for (let y = currentYear; y >= currentYear - 4; y--) {
+        const opt = document.createElement('option');
+        opt.value = `year_${y}`;
+        opt.textContent = `${y} Year`;
+        yearSelect.appendChild(opt);
+    }
+
+    // 普通快捷按钮点击事件
     buttons.forEach(btn => {
         btn.addEventListener('click', (e) => {
+            const target = e.currentTarget;
             buttons.forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentRange = e.target.getAttribute('data-range');
+            yearSelect.classList.remove('active');
+            yearSelect.selectedIndex = 0; // 重置下拉框
+
+            target.classList.add('active');
+            currentRange = target.getAttribute('data-range') || '1';
             loadAnalytics(currentRange);
         });
+    });
+
+    // 具体年份下拉框切换事件
+    yearSelect.addEventListener('change', (e) => {
+        const target = e.target;
+        buttons.forEach(b => b.classList.remove('active'));
+        yearSelect.classList.add('active');
+
+        currentRange = target.value; // 如 "year_2026"
+        loadAnalytics(currentRange);
     });
 }
 
 function loadAnalytics(range) {
     chrome.bookmarks.getTree(async (nodes) => {
-        const allBookmarks = [];
-        function traverse(node) {
-            if (node.url) allBookmarks.push(node);
-            if (node.children) node.children.forEach(traverse);
-        }
-        nodes.forEach(traverse);
+        const allBookmarks = getAllBookmarks(nodes);
 
         const storageData = await chrome.storage.local.get('bookmarkStats') || {};
         const stats = storageData.bookmarkStats || {};
 
         const now = Date.now();
-        let timeThreshold = 0;
+        let startTime = 0;
+        let endTime = Infinity;
 
-        if (range === '1') timeThreshold = now - 1 * 24 * 60 * 60 * 1000;
-        else if (range === '7') timeThreshold = now - 7 * 24 * 60 * 60 * 1000;
-        else if (range === '30') timeThreshold = now - 30 * 24 * 60 * 60 * 1000;
-        else timeThreshold = 0;
+        // 🎯 判断并精确计算时间区间
+        if (range.startsWith('year_')) {
+            const targetYear = parseInt(range.split('_')[1], 10);
+            startTime = new Date(targetYear, 0, 1, 0, 0, 0).getTime();
+            endTime = new Date(targetYear + 1, 0, 1, 0, 0, 0).getTime() - 1;
+        } else if (range === '1') {
+            startTime = now - 24 * 60 * 60 * 1000;
+        } else if (range === '7') {
+            startTime = now - 7 * 24 * 60 * 60 * 1000;
+        } else if (range === '30') {
+            startTime = now - 30 * 24 * 60 * 60 * 1000;
+        } else if (range === '90') {
+            startTime = now - 90 * 24 * 60 * 60 * 1000;
+        } else if (range === '365') {
+            startTime = now - 365 * 24 * 60 * 60 * 1000;
+        } else {
+            startTime = 0;
+        }
 
         const analytics = allBookmarks.map(bm => {
             const stat = stats[bm.id] || { visits: 0, timestamps: [] };
-            let count = 0;
+            let count;
             if (range === 'all') {
                 count = stat.visits || 0;
             } else {
                 const timestamps = stat.timestamps || [];
-                count = timestamps.filter(ts => ts >= timeThreshold).length;
+                count = timestamps.filter(ts => ts >= startTime && ts <= endTime).length;
             }
             return { title: bm.title || bm.url, count: count };
         });
@@ -64,12 +118,17 @@ function loadAnalytics(range) {
 }
 
 function renderChart(data) {
-    const ctx = document.getElementById('topChart').getContext('2d');
+    const canvas = document.getElementById('topChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     if (chartInstance) chartInstance.destroy();
 
     const labels = data.map(d => d.title.length > 20 ? d.title.substring(0, 20) + '...' : d.title);
     const counts = data.map(d => d.count);
 
+    // @ts-ignore
     chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -90,29 +149,106 @@ function renderChart(data) {
     });
 }
 
-// 🧊 加载冷书签列表与白名单状态
+/* ================= 2. ⚡ 文件夹重排配置逻辑 ================= */
+async function initFolderSortSettings() {
+    const folderList = document.getElementById('folder-list');
+    const radios = document.querySelectorAll('input[name="sortMode"]');
+    if (!folderList) return;
+
+    // 读取已保存的设置
+    const config = await chrome.storage.local.get(['sortMode', 'selectedFolders']);
+    const savedMode = config.sortMode || 'exclude';
+    // 💡 修复 Argument types do not match parameters 警告
+    const selectedArray = Array.isArray(config.selectedFolders) ? config.selectedFolders : [];
+    const selectedFolders = new Set(selectedArray);
+
+    // 设置 Radio 状态
+    radios.forEach(r => {
+        const input = r;
+        input.checked = (input.value === savedMode);
+        input.addEventListener('change', async (e) => {
+            const target = e.target;
+            await chrome.storage.local.set({ sortMode: target.value });
+        });
+    });
+
+    // 获取 Chrome 文件夹列表
+    chrome.bookmarks.getTree(tree => {
+        const folders = [];
+        function traverse(node, path = '') {
+            if (node.title === '🧊 BookmarkFlow Cold Vault') return;
+            if (!node.url && node.id !== '0' && node.id !== '1' && node.id !== '2') {
+                const fullPath = path ? `${path} / ${node.title}` : node.title;
+                folders.push({ id: node.id, title: fullPath });
+            }
+            if (node.children) {
+                node.children.forEach(child => traverse(child, path ? `${path} / ${node.title}` : node.title));
+            }
+        }
+        tree.forEach(node => traverse(node));
+
+        folderList.innerHTML = '';
+        if (folders.length === 0) {
+            folderList.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">No custom folders found.</div>';
+            return;
+        }
+
+        folders.forEach(folder => {
+            const div = document.createElement('div');
+            div.className = 'folder-item';
+            const isChecked = selectedFolders.has(folder.id);
+
+            div.innerHTML = `
+        <input type="checkbox" id="folder-${folder.id}" value="${folder.id}" ${isChecked ? 'checked' : ''} />
+        <label for="folder-${folder.id}" style="cursor:pointer; flex:1;">📁 ${folder.title}</label>
+      `;
+
+            div.querySelector('input')?.addEventListener('change', async () => {
+                const checkboxes = folderList.querySelectorAll('input[type="checkbox"]:checked');
+                const updatedSelected = Array.from(checkboxes).map(cb => cb.value);
+                await chrome.storage.local.set({ selectedFolders: updatedSelected });
+            });
+
+            folderList.appendChild(div);
+        });
+    });
+}
+
+// 点击手动跑一次重排
+function runSortNow() {
+    const btn = document.getElementById('btn-run-sort');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerText = 'Sorting...';
+
+    // 💡 修复 Unused parameter & Promise returned from sendMessage is ignored 警告
+    chrome.runtime.sendMessage({ action: 'triggerManualSort' }).then(() => {
+        btn.disabled = false;
+        btn.innerText = 'Run Sort Now';
+        alert('Folder bookmarks reordered successfully according to pts!');
+    }).catch(err => {
+        btn.disabled = false;
+        btn.innerText = 'Run Sort Now';
+        console.error(err);
+    });
+}
+
+/* ================= 3. 🧊 冷库归档部分 ================= */
 async function loadColdBookmarks() {
     const coldList = document.getElementById('cold-list');
     const archiveBtn = document.getElementById('btn-archive-all');
+    if (!coldList || !archiveBtn) return;
 
     const storageData = await chrome.storage.local.get(['bookmarkStats', 'whitelist']);
     const stats = storageData.bookmarkStats || {};
-    const whitelist = storageData.whitelist || []; // 存 ID 数组
+    const whitelist = storageData.whitelist || [];
 
     chrome.bookmarks.getTree(nodes => {
-        const allBookmarks = [];
-        function traverse(node) {
-            // 过滤掉已经在冷库文件夹里的书签，防止重复扫描
-            if (node.title === '🧊 BookmarkFlow Cold Vault') return;
-            if (node.url) allBookmarks.push(node);
-            if (node.children) node.children.forEach(traverse);
-        }
-        nodes.forEach(traverse);
+        const allBookmarks = getAllBookmarks(nodes);
 
         const now = Date.now();
         const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
-        // 筛选规则：最近访问时间 < 30 天前（或者从来没访问过且添加时间 > 30 天前）
         const coldBookmarks = allBookmarks.filter(bm => {
             const stat = stats[bm.id];
             const lastVisited = stat ? stat.lastVisited : (bm.dateAdded || 0);
@@ -131,9 +267,7 @@ async function loadColdBookmarks() {
 
         coldBookmarks.forEach(bm => {
             const isWhitelisted = whitelist.includes(bm.id);
-            if (!isWhitelisted) {
-                coldBookmarkIds.push(bm.id);
-            }
+            if (!isWhitelisted) coldBookmarkIds.push(bm.id);
 
             const li = document.createElement('li');
             li.className = 'item-row';
@@ -146,11 +280,9 @@ async function loadColdBookmarks() {
         </div>
       `;
 
-            // 点击切换白名单机制
-            li.querySelector('.btn-small').addEventListener('click', (e) => {
-                toggleWhitelist(bm.id);
+            li.querySelector('.btn-small')?.addEventListener('click', async () => {
+                await toggleWhitelist(bm.id);
             });
-
             coldList.appendChild(li);
         });
 
@@ -159,33 +291,30 @@ async function loadColdBookmarks() {
     });
 }
 
-// 切换白名单函数
 async function toggleWhitelist(id) {
     const storageData = await chrome.storage.local.get('whitelist');
     let whitelist = storageData.whitelist || [];
-
     if (whitelist.includes(id)) {
         whitelist = whitelist.filter(item => item !== id);
     } else {
         whitelist.push(id);
     }
-
     await chrome.storage.local.set({ whitelist });
-    loadColdBookmarks(); // 重新加载渲染
+    await loadColdBookmarks();
 }
 
-// 执行归档
 function archiveColdBookmarks() {
     if (coldBookmarkIds.length === 0) return;
-
     const archiveBtn = document.getElementById('btn-archive-all');
+    if (!archiveBtn) return;
     archiveBtn.disabled = true;
     archiveBtn.innerText = 'Archiving...';
 
-    chrome.runtime.sendMessage({ action: 'archiveBookmarks', bookmarkIds: coldBookmarkIds }, (response) => {
+    // 💡 修复 Promise 忽略与响应类型检查警告
+    chrome.runtime.sendMessage({ action: 'archiveBookmarks', bookmarkIds: coldBookmarkIds }).then((response) => {
         if (response && response.status === 'success') {
             alert(`Successfully moved ${coldBookmarkIds.length} cold bookmarks to Cold Vault!`);
-            loadColdBookmarks(); // 刷新列表
+            loadColdBookmarks().catch(console.error);
         }
-    });
+    }).catch(console.error);
 }

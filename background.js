@@ -133,7 +133,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
 });
 
-// ⚡ 5. 自动化文件夹重排核心逻辑
+// ⚡ 5. 自动化文件夹重排核心逻辑（已优化：无点击量书签保持原始相对位置不变）
 async function autoSortFolders() {
     console.time('[BookmarkFlow] 重排总耗时');
     try {
@@ -184,16 +184,33 @@ async function autoSortFolders() {
 
             if (childBookmarks.length <= 1) continue;
 
-            const sorted = [...childBookmarks].sort((a, b) => {
-                const ptsA = stats[a.id]?.visits || 0;
-                const ptsB = stats[b.id]?.visits || 0;
+            // 💡 1. 检查当前文件夹是否有任何书签被点击过
+            const hasAnyVisits = childBookmarks.some(bm => (stats[bm.id]?.visits || 0) > 0);
 
-                if (ptsB !== ptsA) {
-                    return ptsB - ptsA;
+            // 如果所有书签点击量均为 0，完全不移动，原封不动！
+            if (!hasAnyVisits) {
+                continue;
+            }
+
+            // 💡 2. 附带书签原始索引 originalIndex 进行精准排序
+            const indexedBookmarks = childBookmarks.map((bm, index) => ({
+                bookmark: bm,
+                originalIndex: index,
+                visits: stats[bm.id]?.visits || 0
+            }));
+
+            indexedBookmarks.sort((a, b) => {
+                // 优先按点击量降序
+                if (b.visits !== a.visits) {
+                    return b.visits - a.visits;
                 }
-                return (b.dateAdded || 0) - (a.dateAdded || 0);
+                // 点击量相同（包括都为 0）时，严格按原有相对顺序（原始索引升序）保留位置！
+                return a.originalIndex - b.originalIndex;
             });
 
+            const sorted = indexedBookmarks.map(item => item.bookmark);
+
+            // 💡 3. 比对是否已有位置变化
             let isAlreadySorted = true;
             for (let i = 0; i < childBookmarks.length; i++) {
                 if (childBookmarks[i].id !== sorted[i].id) {

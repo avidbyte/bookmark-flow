@@ -49,9 +49,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         topBookmarks.forEach(bm => {
             const li = document.createElement('li');
+            const displayTitle = (bm.title && bm.title.trim() !== '')
+                ? bm.title
+                : getDomainFromUrl(bm.url);
             li.innerHTML = `
         <div class="link-info">
-          <div class="link-title">${bm.title || 'Untitled'}</div>
+          <div class="link-title">${displayTitle}</div>
           <div class="link-url">${bm.url}</div>
         </div>
         <div class="score">${bm.visits > 0 ? bm.visits + ' pts' : 'NEW'}</div>
@@ -74,3 +77,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.getElementById('open-dashboard')?.addEventListener('click', async () => {
     await chrome.runtime.openOptionsPage().catch(console.error);
 });
+
+
+function getDomainFromUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+        // 1. 去掉 www. 前缀
+        const host = parsedUrl.hostname.replace(/^www\./, '');
+
+        // 2. 规范化路径：去掉末尾斜杠，如果是空路径或只有 '/' 则置为空
+        const path = parsedUrl.pathname.replace(/\/$/, '');
+
+        // 3. 拼接域名和路径
+        return host + path;
+    } catch (e) {
+        return url || 'Untitled';
+    }
+}

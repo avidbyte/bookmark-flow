@@ -33,7 +33,7 @@ function initFilters() {
 
     const currentYear = new Date().getFullYear();
     yearSelect.innerHTML = '<option value="" disabled selected>By Year...</option>';
-    for (let y = currentYear; y >= currentYear - 4; y--) {
+    for (let y = currentYear; y >= currentYear - 9; y--) {
         const opt = document.createElement('option');
         opt.value = `year_${y}`;
         opt.textContent = `${y} Year`;

@@ -133,7 +133,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
 });
 
-// ⚡ 5. 自动化文件夹重排核心逻辑（已优化：无点击量书签保持原始相对位置不变）
+// ⚡ 5. 自动化文件夹重排核心逻辑（完美支持子文件夹隔离与同级绝对索引）
 async function autoSortFolders() {
     console.time('[BookmarkFlow] 重排总耗时');
     try {
@@ -145,7 +145,7 @@ async function autoSortFolders() {
         const tree = await chrome.bookmarks.getTree();
         const targetFolders = [];
 
-        // 收集所有符合条件的文件夹节点
+        // 1. 收集所有符合条件的文件夹节点
         function collectFolders(node) {
             if (node.title === '🧊 BookmarkFlow Cold Vault') return;
 
@@ -177,43 +177,42 @@ async function autoSortFolders() {
 
         console.log(`[Sort Engine] 找到 ${targetFolders.length} 个符合条件的文件夹待检测`);
 
-        // 逐个文件夹重排
+        // 2. 逐个文件夹独立重排（不跨层级、不混淆嵌套文件夹）
         for (const folder of targetFolders) {
-            const children = await chrome.bookmarks.getChildren(folder.id);
-            const childBookmarks = children.filter(child => child.url);
+            // 获取当前文件夹下的【所有直属子节点】（包含书签和子文件夹）
+            const allChildren = await chrome.bookmarks.getChildren(folder.id);
+            if (allChildren.length <= 1) continue;
 
-            if (childBookmarks.length <= 1) continue;
-
-            // 💡 1. 检查当前文件夹是否有任何书签被点击过
-            const hasAnyVisits = childBookmarks.some(bm => (stats[bm.id]?.visits || 0) > 0);
-
-            // 如果所有书签点击量均为 0，完全不移动，原封不动！
+            // 检查当前文件夹中的直属书签是否有点击记录
+            const hasAnyVisits = allChildren.some(node => node.url && (stats[node.id]?.visits || 0) > 0);
             if (!hasAnyVisits) {
-                continue;
+                continue; // 全无点击量，原封不动！
             }
 
-            // 💡 2. 附带书签原始索引 originalIndex 进行精准排序
-            const indexedBookmarks = childBookmarks.map((bm, index) => ({
-                bookmark: bm,
-                originalIndex: index,
-                visits: stats[bm.id]?.visits || 0
+            // 给所有直属节点赋予【在父文件夹中的真实绝对索引 absoluteIndex】
+            const indexedNodes = allChildren.map((node, index) => ({
+                node,
+                absoluteIndex: index,
+                isBookmark: Boolean(node.url),
+                visits: node.url ? (stats[node.id]?.visits || 0) : -1 // 文件夹不参与热度排序
             }));
 
-            indexedBookmarks.sort((a, b) => {
-                // 优先按点击量降序
+            // 排序策略：
+            // 1. 纯网址书签按点击量降序；
+            // 2. 点击量相同时（包含都为 0 次，或子文件夹），严格按 absoluteIndex 升序保持原始相对位置。
+            indexedNodes.sort((a, b) => {
                 if (b.visits !== a.visits) {
                     return b.visits - a.visits;
                 }
-                // 点击量相同（包括都为 0）时，严格按原有相对顺序（原始索引升序）保留位置！
-                return a.originalIndex - b.originalIndex;
+                return a.absoluteIndex - b.absoluteIndex;
             });
 
-            const sorted = indexedBookmarks.map(item => item.bookmark);
+            const sortedNodes = indexedNodes.map(item => item.node);
 
-            // 💡 3. 比对是否已有位置变化
+            // 检查整体顺序是否改变
             let isAlreadySorted = true;
-            for (let i = 0; i < childBookmarks.length; i++) {
-                if (childBookmarks[i].id !== sorted[i].id) {
+            for (let i = 0; i < allChildren.length; i++) {
+                if (allChildren[i].id !== sortedNodes[i].id) {
                     isAlreadySorted = false;
                     break;
                 }
@@ -223,16 +222,16 @@ async function autoSortFolders() {
 
             console.log(`[Sort Engine] 正在对文件夹进行安全重排: "${folder.title}" (ID: ${folder.id})`);
 
-            // 倒序安全移动，避免索引错位
-            for (let i = sorted.length - 1; i >= 0; i--) {
-                const bm = sorted[i];
+            // 倒序安全移动所有节点，保证绝对索引精确对齐（包括子文件夹与书签的相对位置）
+            for (let i = sortedNodes.length - 1; i >= 0; i--) {
+                const node = sortedNodes[i];
                 try {
-                    await chrome.bookmarks.move(bm.id, {
+                    await chrome.bookmarks.move(node.id, {
                         parentId: folder.id,
                         index: 0
                     });
                 } catch (e) {
-                    console.warn(`[BookmarkFlow] 移动书签 ${bm.id} 失败:`, e);
+                    console.warn(`[BookmarkFlow] 移动节点 ${node.id} 失败:`, e);
                 }
             }
         }

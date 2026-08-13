@@ -108,16 +108,24 @@ async function archiveBookmarks(bookmarkIds) {
     }
 }
 
-// ⏰ 4. 定时任务 & 浏览器启动事件注册（已修正非 Promise 调用错误）
-chrome.runtime.onInstalled.addListener(() => {
+// ⏰ 4. 定时任务 & 浏览器启动事件注册
+chrome.runtime.onInstalled.addListener(async (details) => {
     try {
+        // 💡 1. 记录插件安装/首次初始化时间戳
+        const { installedAt } = await chrome.storage.local.get('installedAt');
+        if (!installedAt) {
+            await chrome.storage.local.set({ installedAt: Date.now() });
+            console.log('[BookmarkFlow] 已记录插件首次安装时间:', new Date().toLocaleString());
+        }
+
+        // 2. 创建 1 小时自动排序定时器
         chrome.alarms.create('hourlyAutoSort', {
             delayInMinutes: 1,      // 安装 1 分钟后首次触发
-            periodInMinutes: 60     // 之后每 60 分钟（1小时）触发一次
+            periodInMinutes: 60     // 之后每 60 分钟触发一次
         });
         console.log('[BookmarkFlow] 1小时自动排序定时器已就位');
     } catch (e) {
-        console.error('[BookmarkFlow] 创建定时器失败:', e);
+        console.error('[BookmarkFlow] 初始化设置失败:', e);
     }
 });
 

@@ -251,25 +251,56 @@ async function runSortNow() {
     }
 }
 
-/* ================= 3. 🧊 冷库归档部分 ================= */
+/* ================= 3. 🧊 冷库归档部分（含冷启动观察期保护） ================= */
 async function loadColdBookmarks() {
     const coldList = document.getElementById('cold-list');
     const archiveBtn = document.getElementById('btn-archive-all');
     if (!coldList || !archiveBtn) return;
 
-    const storageData = await chrome.storage.local.get(['bookmarkStats', 'whitelist']);
+    // 读取数据，增加 installedAt
+    const storageData = await chrome.storage.local.get(['bookmarkStats', 'whitelist', 'installedAt']);
     const stats = storageData.bookmarkStats || {};
     const whitelist = storageData.whitelist || [];
+    // 如果因开发或旧版本没有 installedAt，则默认以当前时间为准
+    const installedAt = storageData.installedAt || Date.now();
 
+    const now = Date.now();
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - THIRTY_DAYS_MS;
+
+    // 🛡️ 防御机制：判断插件安装时间是否满 30 天
+    const elapsedMs = now - installedAt;
+    if (elapsedMs < THIRTY_DAYS_MS) {
+        const installedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+        const remainingDays = Math.max(1, 30 - installedDays);
+
+        coldList.innerHTML = `
+            <div class="empty-state">
+                <div style="font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 6px;">
+                    ⏳ Learning Your Habits (${installedDays}/30 Days)
+                </div>
+                <div style="color: #64748b; font-size: 12px; line-height: 1.5;">
+                    BookmarkFlow needs 30 days to observe your bookmark usage.<br>
+                    Cold vault recommendations will unlock in <strong>${remainingDays} day(s)</strong>.
+                </div>
+            </div>
+        `;
+        archiveBtn.disabled = true;
+        archiveBtn.innerText = 'Learning in Progress...';
+        return;
+    }
+
+    // 网页正常满 30 天后：执行冷书签搜寻
     chrome.bookmarks.getTree(nodes => {
         const allBookmarks = getAllBookmarks(nodes);
 
-        const now = Date.now();
-        const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-
         const coldBookmarks = allBookmarks.filter(bm => {
             const stat = stats[bm.id];
-            const lastVisited = stat ? stat.lastVisited : (bm.dateAdded || 0);
+
+            // 💡 判定核心：
+            // 1. 若有点击，看最后点击时间是否早于 30 天前；
+            // 2. 若无点击，由于安装已满 30 天且一次未点，直接视为 0 (< thirtyDaysAgo)，判定为冷书签
+            const lastVisited = stat ? stat.lastVisited : 0;
             return lastVisited < thirtyDaysAgo;
         });
 
@@ -277,7 +308,7 @@ async function loadColdBookmarks() {
         coldList.innerHTML = '';
 
         if (coldBookmarks.length === 0) {
-            coldList.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">🎉 Great! No cold bookmarks found.</div>';
+            coldList.innerHTML = '<div class="empty-state">🎉 Great! No unvisited bookmarks found in the last 30 days.</div>';
             archiveBtn.disabled = true;
             archiveBtn.innerText = 'Move to Cold Vault';
             return;
@@ -290,13 +321,13 @@ async function loadColdBookmarks() {
             const li = document.createElement('li');
             li.className = 'item-row';
             li.innerHTML = `
-        <div class="item-title" title="${bm.url}">${bm.title || bm.url}</div>
-        <div>
-          <button class="btn-small ${isWhitelisted ? 'pinned' : ''}" data-id="${bm.id}">
-            ${isWhitelisted ? '⭐ Protected' : '☆ Whitelist'}
-          </button>
-        </div>
-      `;
+                <div class="item-title" title="${bm.url}">${bm.title || bm.url}</div>
+                <div>
+                  <button class="btn-small ${isWhitelisted ? 'pinned' : ''}" data-id="${bm.id}">
+                    ${isWhitelisted ? '⭐ Protected' : '☆ Whitelist'}
+                  </button>
+                </div>
+            `;
 
             li.querySelector('.btn-small')?.addEventListener('click', async () => {
                 await toggleWhitelist(bm.id);

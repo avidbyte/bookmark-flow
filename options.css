@@ -318,3 +318,56 @@ body {
     from { opacity: 0; transform: translateY(-4px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ================= 样式优化升级 ================= */
+
+/* 1. 图表无数据 Overlay 状态 */
+.chart-empty-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    pointer-events: none;
+}
+
+/* 2. 文件夹路径美化（淡化祖先路径，突出最后一级文件夹） */
+.folder-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f8fafc;
+    font-size: 13px;
+}
+
+.folder-path-prefix {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+.folder-name-current {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+/* 3. 学习期迷你进度条 */
+.progress-bar-bg {
+    width: 100%;
+    max-width: 260px;
+    height: 6px;
+    background-color: #e2e8f0;
+    border-radius: 3px;
+    margin: 10px auto 4px auto;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 3px;
+    transition: width 0.4s ease-out;
+}

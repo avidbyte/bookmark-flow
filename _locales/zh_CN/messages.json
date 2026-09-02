@@ -46,5 +46,8 @@
   "hotBookmarksTitle": { "message": "热门书签（最常访问）" },
   "analyzingText": { "message": "正在分析您的书签..." },
   "ptsTag": { "message": "分" },
-  "newTag": { "message": "新" }
+  "newTag": { "message": "新" },
+
+  "coldVaultDescPrefix": { "message": "超过 " },
+  "coldVaultDescSuffix": { "message": "未访问的书签（排除白名单）" }
 }

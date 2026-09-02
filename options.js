@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initFilters();
     initAllDataToggle();
     initFolderSearch();
+    initColdDaysSelect();
     loadAnalytics('1');
     await loadColdBookmarks().catch(console.error);
     await initFolderSortSettings().catch(console.error);
@@ -79,7 +80,7 @@ function initFilters() {
     yearSelect.addEventListener('change', (e) => {
         const target = e.target;
         buttons.forEach(b => b.classList.remove('active'));
-        yearSelect.add('active');
+        yearSelect.classList.add('active');
 
         currentRange = target.value;
         loadAnalytics(currentRange);
@@ -437,28 +438,47 @@ async function runSortNow() {
 }
 
 /* ================= 3. 🧊 冷库归档部分 ================= */
+async function initColdDaysSelect() {
+    const select = document.getElementById('cold-days-select');
+    if (!select) return;
+
+    const storage = await chrome.storage.local.get('coldThresholdDays');
+    if (storage.coldThresholdDays) {
+        select.value = String(storage.coldThresholdDays);
+    }
+
+    select.addEventListener('change', async (e) => {
+        const days = parseInt(e.target.value, 10);
+        await chrome.storage.local.set({ coldThresholdDays: days });
+        await loadColdBookmarks();
+    });
+}
+
 async function loadColdBookmarks() {
     const coldList = document.getElementById('cold-list');
     const archiveBtn = document.getElementById('btn-archive-all');
     if (!coldList || !archiveBtn) return;
 
-    const storageData = await chrome.storage.local.get(['bookmarkStats', 'whitelist', 'installedAt']);
+    const storageData = await chrome.storage.local.get(['bookmarkStats', 'whitelist', 'installedAt', 'coldThresholdDays']);
     const stats = storageData.bookmarkStats || {};
     const whitelist = storageData.whitelist || [];
     const installedAt = storageData.installedAt || Date.now();
+    const thresholdDays = storageData.coldThresholdDays || 30; // 默认 30 天
 
     const now = Date.now();
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    const thirtyDaysAgo = now - THIRTY_DAYS_MS;
+    const THRESHOLD_MS = thresholdDays * 24 * 60 * 60 * 1000;
+    const thresholdAgo = now - THRESHOLD_MS;
 
     const elapsedMs = now - installedAt;
-    if (elapsedMs < THIRTY_DAYS_MS) {
-        const installedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
-        const remainingDays = Math.max(1, 30 - installedDays);
-        const percent = Math.min(100, Math.max(2, Math.round((installedDays / 30) * 100)));
 
-        const learningTitle = chrome.i18n.getMessage('learningTitle', [String(installedDays), '30']) || `⏳ Learning Your Habits (${installedDays}/30 Days)`;
-        const learningDesc = chrome.i18n.getMessage('learningDesc', [String(remainingDays)]) || `BookmarkFlow needs 30 days to observe your bookmark usage.<br>Cold vault recommendations will unlock in <strong>${remainingDays} day(s)</strong>.`;
+    // 如果“实际安装时长”小于“配置的判定天数”，显示学习观察期
+    if (elapsedMs < THRESHOLD_MS) {
+        const installedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+        const remainingDays = Math.max(1, thresholdDays - installedDays);
+        const percent = Math.min(100, Math.max(2, Math.round((installedDays / thresholdDays) * 100)));
+
+        const learningTitle = chrome.i18n.getMessage('learningTitle', [String(installedDays), String(thresholdDays)]) || `⏳ Learning Your Habits (${installedDays}/${thresholdDays} Days)`;
+        const learningDesc = chrome.i18n.getMessage('learningDesc', [String(thresholdDays), String(remainingDays)]) || `BookmarkFlow needs ${thresholdDays} days to observe your bookmark usage.<br>Cold vault recommendations will unlock in <strong>${remainingDays} day(s)</strong>.`;
 
         coldList.innerHTML = `
             <div class="empty-state">
@@ -484,14 +504,14 @@ async function loadColdBookmarks() {
         const coldBookmarks = allBookmarks.filter(bm => {
             const stat = stats[bm.id];
             const lastVisited = stat ? stat.lastVisited : 0;
-            return lastVisited < thirtyDaysAgo;
+            return lastVisited < thresholdAgo;
         });
 
         coldBookmarkIds = [];
         coldList.innerHTML = '';
 
         if (coldBookmarks.length === 0) {
-            const noColdText = chrome.i18n.getMessage('noColdBookmarks') || '🎉 Great! No unvisited bookmarks found in the last 30 days.';
+            const noColdText = chrome.i18n.getMessage('noColdBookmarks') || `🎉 Great! No unvisited bookmarks found in the last ${thresholdDays} days.`;
             coldList.innerHTML = `<div class="empty-state">${noColdText}</div>`;
             archiveBtn.disabled = true;
             archiveBtn.innerText = chrome.i18n.getMessage('moveToColdVault') || 'Move to Cold Vault';

@@ -93,13 +93,21 @@
         </div>
     </div>
 
-    <!-- 3. 冷库归档 -->
+    <!-- 3. 冷库归档 (加入下拉配置天数) -->
     <div class="card">
         <div class="section-header">
             <div>
                 <h3 class="card-title">🧊 <span data-i18n="coldVaultTitle">Cold Vault Archiver</span></h3>
-                <div class="card-desc" data-i18n="coldVaultDesc">
-                    Bookmarks unvisited since installation (> 30 days, excluding Whitelisted)
+                <div class="card-desc">
+                    <span data-i18n="coldVaultDescPrefix">Bookmarks unvisited in </span>
+                    <select id="cold-days-select" class="inline-select" aria-label="Select cold vault threshold days">
+                        <option value="7">7 Days</option>
+                        <option value="14">14 Days</option>
+                        <option value="30" selected>30 Days</option>
+                        <option value="60">60 Days</option>
+                        <option value="90">90 Days</option>
+                    </select>
+                    <span data-i18n="coldVaultDescSuffix">(excluding Whitelisted)</span>
                 </div>
             </div>
             <button id="btn-archive-all" class="btn-action" disabled data-i18n="moveToColdVault">Move to Cold Vault</button>

@@ -46,5 +46,8 @@
   "hotBookmarksTitle": { "message": "Hot Bookmarks (Most Active)" },
   "analyzingText": { "message": "Analyzing your bookmarks..." },
   "ptsTag": { "message": "pts" },
-  "newTag": { "message": "NEW" }
+  "newTag": { "message": "NEW" },
+
+  "coldVaultDescPrefix": { "message": "Bookmarks unvisited in " },
+  "coldVaultDescSuffix": { "message": "(excluding Whitelisted)" }
 }

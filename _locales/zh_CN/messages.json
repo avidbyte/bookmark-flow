@@ -49,5 +49,8 @@
   "newTag": { "message": "新" },
 
   "coldVaultDescPrefix": { "message": "超过 " },
-  "coldVaultDescSuffix": { "message": "未访问的书签（排除白名单）" }
+  "coldVaultDescSuffix": { "message": "未访问的书签（排除白名单）" },
+  "sortRulesDesc": { "message": "根据使用频率自动重新排列书签（每小时及启动时执行）。" },
+  "modeA": { "message": "<b>排序所有文件夹</b>（自动跳过下方勾选的文件夹）" },
+  "modeB": { "message": "<b>仅排序指定文件夹</b>（仅处理下方勾选的文件夹）" }
 }

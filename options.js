@@ -220,7 +220,7 @@ function renderChart(data) {
                         color: '#64748b',
                         maxRotation: 0,
                         minRotation: 0,
-                        autoSkip: true,
+                        autoSkip: false,
                         callback: function(value) {
                             const label = this.getLabelForValue(value);
                             return label.length > 8 ? label.substring(0, 8) + '...' : label;

@@ -1,7 +1,7 @@
 {
   "coldVaultFolderName": { "message": "🧊 BookmarkFlow 冷库" },
-  "extName": { "message": "BookmarkFlow 控制中心" },
-  "extSubTitle": { "message": "书签访问分析与生命周期管理" },
+  "extName": { "message": "BookmarkFlow - 智能 LRU 书签管理助手" },
+  "extSubTitle": { "message": "根据使用频率自动重排与归档，让常用书签触手可及。" },
   "chartTitle": { "message": "高频访问书签 Top 10" },
   "range24h": { "message": "24 小时内" },
   "range7d": { "message": "7 天内" },

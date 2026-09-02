@@ -1,7 +1,7 @@
 {
   "coldVaultFolderName": { "message": "🧊 BookmarkFlow Cold Vault" },
-  "extName": { "message": "BookmarkFlow Control Center" },
-  "extSubTitle": { "message": "Bookmark analytics and lifecycle management" },
+  "extName": { "message": "BookmarkFlow - Smart LRU Bookmark Manager" },
+  "extSubTitle": { "message": "Auto-decay clutter and keep your frequently used bookmarks flowing at your fingertips." },
   "chartTitle": { "message": "Top Most Visited Bookmarks" },
   "range24h": { "message": "24 Hours" },
   "range7d": { "message": "7 Days" },

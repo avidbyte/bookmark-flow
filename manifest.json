@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "BookmarkFlow - Smart LRU Bookmark Manager",
+  "name": "__MSG_extName__",
   "version": "1.0.0",
-  "description": "Auto-decay clutter and keep your frequently used bookmarks flowing at your fingertips.",
+  "description": "__MSG_extSubTitle__",
   "default_locale": "en",
   "permissions": [
     "bookmarks",
@@ -28,5 +28,4 @@
     "48": "icon48.png",
     "128": "icon128.png"
   }
-
 }

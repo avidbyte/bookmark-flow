@@ -121,7 +121,9 @@ function renderChart(data) {
 
     if (chartInstance) chartInstance.destroy();
 
-    const labels = data.map(d => d.title.length > 20 ? d.title.substring(0, 20) + '...' : d.title);
+    // 格式化文本：超过 12 个字符则截断，鼠标悬浮时可通过 Tooltip 查看完整标题
+    const labels = data.map(d => d.title.length > 12 ? d.title.substring(0, 12) + '...' : d.title);
+    const fullTitles = data.map(d => d.title); // 传给 Tooltip 用的完整标题
     const counts = data.map(d => d.count);
 
     // @ts-ignore
@@ -133,14 +135,49 @@ function renderChart(data) {
                 label: 'Visits',
                 data: counts,
                 backgroundColor: '#3b82f6',
+                hoverBackgroundColor: '#2563eb',
                 borderRadius: 6
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            layout: {
+                padding: {
+                    bottom: 10 // 预留底部边距
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        // 悬浮时显示完整标题，解决截断后的可读性问题
+                        title: (tooltipItems) => fullTitles[tooltipItems[0].dataIndex]
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false }, // 隐藏 X 轴竖向网格线，页面视觉更干净
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#64748b',
+                        maxRotation: 0, // 💡 关键：强制 0 度水平显示，不再倾斜
+                        minRotation: 0,
+                        autoSkip: true, // 节点过多时自动隐藏部分 Label 防止拥挤
+                        // 进阶处理：防止单个极其宽烈的字符破坏排列，格式化 X 轴显示的文本
+                        callback: function(value, index) {
+                            const label = this.getLabelForValue(value);
+                            return label.length > 8 ? label.substring(0, 8) + '...' : label;
+                        }
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, color: '#64748b' },
+                    grid: { color: '#f1f5f9' }
+                }
+            }
         }
     });
 }

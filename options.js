@@ -1,6 +1,7 @@
 let chartInstance = null;
 let currentRange = '1';
 let coldBookmarkIds = [];
+let cachedAnalyticsData = []; // 💡 全局缓存当前时间段下的完整数据，供表格渲染与搜索使用
 
 // 通用工具：递归获取所有书签节点
 function getAllBookmarks(nodes) {
@@ -16,6 +17,7 @@ function getAllBookmarks(nodes) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     initFilters();
+    initAllDataToggle(); // 💡 初始化 Show All Data 面板折叠与搜索事件
     loadAnalytics('1');
     await loadColdBookmarks().catch(console.error);
     await initFolderSortSettings().catch(console.error);
@@ -24,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-run-sort')?.addEventListener('click', runSortNow);
 });
 
-/* ================= 1. 图表部分 ================= */
+/* ================= 1. 图表与全量列表部分 ================= */
 function initFilters() {
     const buttons = document.querySelectorAll('.btn-filter:not(select)');
     const yearSelect = document.getElementById('year-filter');
@@ -101,15 +103,27 @@ function loadAnalytics(range) {
                 const timestamps = stat.timestamps || [];
                 count = timestamps.filter(ts => ts >= startTime && ts <= endTime).length;
             }
-            return { title: bm.title || bm.url, count: count };
+            // 💡 补充传递 id 和 url，方便全量表格和点击跳转使用
+            return {
+                id: bm.id,
+                title: bm.title || bm.url || 'Untitled',
+                url: bm.url || '',
+                count: count
+            };
         });
 
-        const topData = analytics
+        // 💡 缓存按访问量降序排列的全量数据
+        cachedAnalyticsData = analytics.sort((a, b) => b.count - a.count);
+
+        // 图表依然只拉取有访问量的 Top 10，保持精美
+        const topData = cachedAnalyticsData
             .filter(item => item.count > 0)
-            .sort((a, b) => b.count - a.count)
             .slice(0, 10);
 
         renderChart(topData);
+
+        // 💡 同步渲染全量数据表格（包含点击量为 0 的书签）
+        renderAllDataTable(cachedAnalyticsData);
     });
 }
 
@@ -182,7 +196,65 @@ function renderChart(data) {
     });
 }
 
-/* ================= 2. ⚡ 文件夹重排配置逻辑 ================= */
+/* ================= 💡 2. Show All Data 全量表格逻辑 ================= */
+function renderAllDataTable(data) {
+    const tbody = document.getElementById('all-data-tbody');
+    const totalCountSpan = document.getElementById('total-count');
+    if (!tbody) return;
+
+    if (totalCountSpan) {
+        totalCountSpan.textContent = String(data.length);
+    }
+
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No bookmarks found matching your query.</td></tr>';
+        return;
+    }
+
+    data.forEach((item, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align: center; color: #94a3b8;">${index + 1}</td>
+            <td class="table-title" title="${item.title}">${item.title}</td>
+            <td class="table-url" title="${item.url}">
+                <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>
+            </td>
+            <td style="text-align: right;">
+                <span class="badge-visits">${item.count}</span>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function initAllDataToggle() {
+    const toggleBtn = document.getElementById('btn-toggle-all-data');
+    const container = document.getElementById('all-data-container');
+    const icon = document.getElementById('toggle-icon');
+    const searchInput = document.getElementById('all-data-search');
+
+    if (toggleBtn && container && icon) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = container.classList.toggle('hidden');
+            icon.textContent = isHidden ? '▼' : '▲';
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = (e.target.value || '').toLowerCase().trim();
+            const filtered = cachedAnalyticsData.filter(item =>
+                item.title.toLowerCase().includes(query) ||
+                item.url.toLowerCase().includes(query)
+            );
+            renderAllDataTable(filtered);
+        });
+    }
+}
+
+/* ================= 3. ⚡ 文件夹重排配置逻辑 ================= */
 async function initFolderSortSettings() {
     const folderList = document.getElementById('folder-list');
     const radios = document.querySelectorAll('input[name="sortMode"]');
@@ -288,7 +360,7 @@ async function runSortNow() {
     }
 }
 
-/* ================= 3. 🧊 冷库归档部分（含冷启动观察期保护） ================= */
+/* ================= 4. 🧊 冷库归档部分（含冷启动观察期保护） ================= */
 async function loadColdBookmarks() {
     const coldList = document.getElementById('cold-list');
     const archiveBtn = document.getElementById('btn-archive-all');

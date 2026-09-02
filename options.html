@@ -33,6 +33,33 @@
             </div>
         </div>
         <div class="chart-container"><canvas id="topChart"></canvas></div>
+
+        <div class="all-data-section">
+            <button id="btn-toggle-all-data" class="btn-toggle-data">
+                <span id="toggle-icon">▼</span> Show All Bookmark Data (<span id="total-count">0</span>)
+            </button>
+
+            <div id="all-data-container" class="all-data-container hidden">
+                <div class="table-toolbar">
+                    <input type="text" id="all-data-search" class="search-input" placeholder="🔍 Search bookmarks or URLs..." />
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                        <tr>
+                            <th style="width: 50px; text-align: center;">#</th>
+                            <th>Bookmark Title</th>
+                            <th>URL</th>
+                            <th style="width: 100px; text-align: right;">Visits</th>
+                        </tr>
+                        </thead>
+                        <tbody id="all-data-tbody">
+                        <!-- 由 JS 动态渲染 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 2. ⚡ 文件夹自动排序配置卡片 -->

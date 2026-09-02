@@ -83,7 +83,7 @@ function recordVisitByBookmarkId(bookmarkId) {
 async function archiveBookmarks(bookmarkIds) {
     if (!bookmarkIds || bookmarkIds.length === 0) return;
 
-    const vaultName = '🧊 BookmarkFlow Cold Vault';
+    const vaultName = chrome.i18n.getMessage('coldVaultFolderName') || '🧊 BookmarkFlow Cold Vault';
     const tree = await chrome.bookmarks.getTree();
     const otherBookmarksFolder = tree[0].children ? (tree[0].children[1] || tree[0].children[0]) : tree[0];
 
@@ -155,7 +155,7 @@ async function autoSortFolders() {
 
         // 1. 收集所有符合条件的文件夹节点
         function collectFolders(node) {
-            if (node.title === '🧊 BookmarkFlow Cold Vault') return;
+            if (node.title === '🧊 BookmarkFlow Cold Vault' || node.title === '🧊 BookmarkFlow 冷库') return;
 
             if (!node.url && node.children) {
                 const isSystemRoot = (node.id === '0' || node.id === '1' || node.id === '2' || node.id === '3');

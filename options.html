@@ -10,25 +10,24 @@
 <div class="container">
     <div class="header">
         <div>
-            <div class="title">🚀 BookmarkFlow Control Center</div>
-            <div class="sub">Bookmark analytics and lifecycle management</div>
+            <div class="title">🚀 <span data-i18n="extName">BookmarkFlow Control Center</span></div>
+            <div class="sub" data-i18n="extSubTitle">Bookmark analytics and lifecycle management</div>
         </div>
     </div>
 
     <!-- 1. 柱状图 -->
     <div class="card">
         <div class="section-header">
-            <h3 class="card-title">📊 Top Most Visited Bookmarks</h3>
+            <h3 class="card-title">📊 <span data-i18n="chartTitle">Top Most Visited Bookmarks</span></h3>
             <div class="filter-group">
-                <button class="btn-filter active" data-range="1">24 Hours</button>
-                <button class="btn-filter" data-range="7">7 Days</button>
-                <button class="btn-filter" data-range="30">30 Days</button>
-                <button class="btn-filter" data-range="90">Quarter (90D)</button>
-                <button class="btn-filter" data-range="365">1 Year</button>
-                <button class="btn-filter" data-range="all">All Time</button>
-                <!-- 💡 增加 aria-label，消除 Missing associated label 告警 -->
+                <button class="btn-filter active" data-range="1" data-i18n="range24h">24 Hours</button>
+                <button class="btn-filter" data-range="7" data-i18n="range7d">7 Days</button>
+                <button class="btn-filter" data-range="30" data-i18n="range30d">30 Days</button>
+                <button class="btn-filter" data-range="90" data-i18n="range90d">Quarter (90D)</button>
+                <button class="btn-filter" data-range="365" data-i18n="range1y">1 Year</button>
+                <button class="btn-filter" data-range="all" data-i18n="rangeAll">All Time</button>
                 <select id="year-filter" class="btn-filter select-filter" aria-label="Filter by year">
-                    <option value="" disabled selected>By Year...</option>
+                    <option value="" disabled selected data-i18n="rangeYearPlaceholder">By Year...</option>
                 </select>
             </div>
         </div>
@@ -36,21 +35,21 @@
 
         <div class="all-data-section">
             <button id="btn-toggle-all-data" class="btn-toggle-data">
-                <span id="toggle-icon">▼</span> Show All Bookmark Data (<span id="total-count">0</span>)
+                <span id="toggle-icon">▼</span> <span data-i18n="showAllData">Show All Bookmark Data</span> (<span id="total-count">0</span>)
             </button>
 
             <div id="all-data-container" class="all-data-container hidden">
                 <div class="table-toolbar">
-                    <input type="text" id="all-data-search" class="search-input" placeholder="🔍 Search bookmarks or URLs..." />
+                    <input type="text" id="all-data-search" class="search-input" placeholder="🔍 Search bookmarks or URLs..." data-i18n-placeholder="searchPlaceholder" />
                 </div>
                 <div class="table-wrapper">
                     <table class="data-table">
                         <thead>
                         <tr>
                             <th style="width: 50px; text-align: center;">#</th>
-                            <th>Bookmark Title</th>
-                            <th>URL</th>
-                            <th style="width: 100px; text-align: right;">Visits</th>
+                            <th data-i18n="tableHeaderTitle">Bookmark Title</th>
+                            <th data-i18n="tableHeaderUrl">URL</th>
+                            <th style="width: 100px; text-align: right;" data-i18n="visitsLabel">Visits</th>
                         </tr>
                         </thead>
                         <tbody id="all-data-tbody">
@@ -66,27 +65,27 @@
     <div class="card">
         <div class="section-header">
             <div>
-                <h3 class="card-title">⚡ Folder Auto-Sort Rules</h3>
-                <div class="card-desc">
+                <h3 class="card-title">⚡ <span data-i18n="sortRulesTitle">Folder Auto-Sort Rules</span></h3>
+                <div class="card-desc" data-i18n="sortRulesDesc">
                     Auto-reorder bookmarks inside folders by pts hourly & on startup.
                 </div>
             </div>
-            <button id="btn-run-sort" class="btn-action">Run Sort Now</button>
+            <button id="btn-run-sort" class="btn-action" data-i18n="runSortNow">Run Sort Now</button>
         </div>
 
         <div class="radio-group">
             <label class="radio-label">
                 <input type="radio" name="sortMode" value="exclude" checked>
-                <span><b>Mode A (Exclude):</b> Sort ALL folders, EXCEPT selected ones below</span>
+                <span data-i18n="modeA"><b>Mode A (Exclude):</b> Sort ALL folders, EXCEPT selected ones below</span>
             </label>
             <label class="radio-label">
                 <input type="radio" name="sortMode" value="include">
-                <span><b>Mode B (Include):</b> ONLY sort selected folders below</span>
+                <span data-i18n="modeB"><b>Mode B (Include):</b> ONLY sort selected folders below</span>
             </label>
         </div>
 
         <div style="margin-bottom: 10px;">
-            <input type="text" id="folder-search-input" class="search-input" placeholder="🔍 Filter folders by name..." />
+            <input type="text" id="folder-search-input" class="search-input" placeholder="🔍 Filter folders by name..." data-i18n-placeholder="filterFoldersPlaceholder" />
         </div>
 
         <div id="folder-list" class="item-list">
@@ -98,13 +97,12 @@
     <div class="card">
         <div class="section-header">
             <div>
-                <h3 class="card-title">🧊 Cold Vault Archiver</h3>
-                <!-- 💡 更新描述说明 -->
-                <div class="card-desc">
+                <h3 class="card-title">🧊 <span data-i18n="coldVaultTitle">Cold Vault Archiver</span></h3>
+                <div class="card-desc" data-i18n="coldVaultDesc">
                     Bookmarks unvisited since installation (> 30 days, excluding Whitelisted)
                 </div>
             </div>
-            <button id="btn-archive-all" class="btn-action" disabled>Move to Cold Vault</button>
+            <button id="btn-archive-all" class="btn-action" disabled data-i18n="moveToColdVault">Move to Cold Vault</button>
         </div>
         <ul id="cold-list" class="item-list"></ul>
     </div>
@@ -114,7 +112,7 @@
         <span>BookmarkFlow v1.0</span>
         <span class="footer-dot">•</span>
         <a href="https://github.com/avidbyte/bookmarkflow-community/issues" target="_blank" rel="noopener noreferrer" class="footer-link">
-            💬 Feedback & Support
+            💬 <span data-i18n="feedback">Feedback & Support</span>
         </a>
     </div>
 

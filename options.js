@@ -2,13 +2,13 @@ let chartInstance = null;
 let currentRange = '1';
 let coldBookmarkIds = [];
 let cachedAnalyticsData = [];
-let allCustomFolders = []; // 💡 缓存文件夹节点列表供即时搜索使用
+let allCustomFolders = [];
 
 // 通用工具：递归获取所有书签节点
 function getAllBookmarks(nodes) {
     const allBookmarks = [];
     function traverse(node) {
-        if (node.title === '🧊 BookmarkFlow Cold Vault') return;
+        if (node.title === '🧊 BookmarkFlow Cold Vault' || node.title === '🧊 BookmarkFlow 冷库') return;
         if (node.url) allBookmarks.push(node);
         if (node.children) node.children.forEach(traverse);
     }
@@ -16,10 +16,26 @@ function getAllBookmarks(nodes) {
     return allBookmarks;
 }
 
+// 统一更新 DOM 中含有 i18n 标识的元素
+function applyI18nTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const msg = chrome.i18n.getMessage(key);
+        if (msg) el.innerHTML = msg;
+    });
+
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const msg = chrome.i18n.getMessage(key);
+        if (msg) el.setAttribute('placeholder', msg);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    applyI18nTranslations();
     initFilters();
     initAllDataToggle();
-    initFolderSearch(); // 💡 初始化文件夹搜索框事件
+    initFolderSearch();
     loadAnalytics('1');
     await loadColdBookmarks().catch(console.error);
     await initFolderSortSettings().catch(console.error);
@@ -36,11 +52,14 @@ function initFilters() {
     if (!yearSelect) return;
 
     const currentYear = new Date().getFullYear();
-    yearSelect.innerHTML = '<option value="" disabled selected>By Year...</option>';
+    const yearPlaceholder = chrome.i18n.getMessage('rangeYearPlaceholder') || 'By Year...';
+    const yearSuffix = chrome.i18n.getMessage('yearSuffix') || ' Year';
+
+    yearSelect.innerHTML = `<option value="" disabled selected>${yearPlaceholder}</option>`;
     for (let y = currentYear; y >= currentYear - 9; y--) {
         const opt = document.createElement('option');
         opt.value = `year_${y}`;
-        opt.textContent = `${y} Year`;
+        opt.textContent = `${y}${yearSuffix}`;
         yearSelect.appendChild(opt);
     }
 
@@ -60,7 +79,7 @@ function initFilters() {
     yearSelect.addEventListener('change', (e) => {
         const target = e.target;
         buttons.forEach(b => b.classList.remove('active'));
-        yearSelect.classList.add('active');
+        yearSelect.add('active');
 
         currentRange = target.value;
         loadAnalytics(currentRange);
@@ -129,18 +148,17 @@ function renderChart(data) {
     const container = canvas.parentElement;
     if (!container) return;
 
-    // 💡 优化点 1：清理已有的 Empty Overlay
     const existingOverlay = container.querySelector('.chart-empty-overlay');
     if (existingOverlay) existingOverlay.remove();
 
-    // 💡 优化点 1：无数据时渲染 Empty State 图示
     if (!data || data.length === 0) {
         if (chartInstance) chartInstance.destroy();
         const emptyOverlay = document.createElement('div');
         emptyOverlay.className = 'chart-empty-overlay';
+        const emptyText = chrome.i18n.getMessage('chartEmpty') || 'No visits recorded in this period';
         emptyOverlay.innerHTML = `
             <div style="font-size: 24px; margin-bottom: 6px;">📊</div>
-            <div>No visits recorded in this period</div>
+            <div>${emptyText}</div>
         `;
         container.appendChild(emptyOverlay);
         return;
@@ -154,12 +172,12 @@ function renderChart(data) {
     const labels = data.map(d => d.title.length > 12 ? d.title.substring(0, 12) + '...' : d.title);
     const fullTitles = data.map(d => d.title);
     const counts = data.map(d => d.count);
+    const visitsLabel = chrome.i18n.getMessage('visitsLabel') || 'Visits';
 
-    // 💡 优化点 1：高亮 Top 1 / Top 2-3 颜色梯度
     const bgColors = counts.map((_, index) => {
-        if (index === 0) return '#2563eb'; // Top 1: 皇家深蓝高亮
-        if (index < 3) return '#3b82f6';  // Top 2-3: 标准蓝
-        return '#93c5fd';                 // 其余：淡蓝色降维
+        if (index === 0) return '#2563eb';
+        if (index < 3) return '#3b82f6';
+        return '#93c5fd';
     });
 
     const hoverBgColors = counts.map((_, index) => {
@@ -174,7 +192,7 @@ function renderChart(data) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Visits',
+                label: visitsLabel,
                 data: counts,
                 backgroundColor: bgColors,
                 hoverBackgroundColor: hoverBgColors,
@@ -229,7 +247,8 @@ function renderAllDataTable(data) {
     tbody.innerHTML = '';
 
     if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">No bookmarks found matching your query.</td></tr>';
+        const noBookmarksText = chrome.i18n.getMessage('noBookmarksFound') || 'No bookmarks found.';
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${noBookmarksText}</td></tr>`;
         return;
     }
 
@@ -295,12 +314,12 @@ async function initFolderSortSettings() {
     chrome.bookmarks.getTree(tree => {
         allCustomFolders = [];
         function traverse(node, pathArr = []) {
-            if (node.title === '🧊 BookmarkFlow Cold Vault') return;
+            if (node.title === '🧊 BookmarkFlow Cold Vault' || node.title === '🧊 BookmarkFlow 冷库') return;
             if (!node.url && node.id !== '0' && node.id !== '1' && node.id !== '2') {
                 allCustomFolders.push({
                     id: node.id,
                     title: node.title,
-                    pathArr: [...pathArr] // 父级路径数组
+                    pathArr: [...pathArr]
                 });
             }
             if (node.children) {
@@ -319,14 +338,14 @@ async function initFolderSortSettings() {
     });
 }
 
-// 💡 优化点 2：渲染文件夹列表，支持层级视觉淡化
 function renderFolderList(folders, selectedFoldersSet) {
     const folderList = document.getElementById('folder-list');
     if (!folderList) return;
 
     folderList.innerHTML = '';
     if (folders.length === 0) {
-        folderList.innerHTML = '<div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">No folders found.</div>';
+        const noFoldersText = chrome.i18n.getMessage('noFoldersFound') || 'No folders found.';
+        folderList.innerHTML = `<div style="text-align:center; padding: 20px; color: #94a3b8; font-size:12px;">${noFoldersText}</div>`;
         return;
     }
 
@@ -335,7 +354,6 @@ function renderFolderList(folders, selectedFoldersSet) {
         div.className = 'folder-item';
         const isChecked = selectedFoldersSet.has(folder.id);
 
-        // 面包屑处理：让上级路径变灰变小，突出当前的文件夹名称
         const pathPrefix = folder.pathArr.length > 0
             ? `<span class="folder-path-prefix">${folder.pathArr.join(' / ')} / </span>`
             : '';
@@ -357,7 +375,6 @@ function renderFolderList(folders, selectedFoldersSet) {
     });
 }
 
-// 💡 优化点 2：搜索/过滤框事件监听
 function initFolderSearch() {
     const searchInput = document.getElementById('folder-search-input');
     if (!searchInput) return;
@@ -382,7 +399,7 @@ async function runSortNow() {
 
     btn.disabled = true;
     const originalText = btn.innerText;
-    btn.innerText = 'Sorting...';
+    btn.innerText = chrome.i18n.getMessage('sorting') || 'Sorting...';
 
     let isFinished = false;
     const timeoutTimer = setTimeout(() => {
@@ -399,7 +416,7 @@ async function runSortNow() {
         clearTimeout(timeoutTimer);
 
         if (response && response.status === 'success') {
-            btn.innerText = 'Done!';
+            btn.innerText = chrome.i18n.getMessage('sortDone') || 'Done!';
             setTimeout(() => {
                 btn.innerText = originalText;
                 btn.disabled = false;
@@ -419,7 +436,7 @@ async function runSortNow() {
     }
 }
 
-/* ================= 3. 🧊 冷库归档部分（含冷启动观察期保护与进度条） ================= */
+/* ================= 3. 🧊 冷库归档部分 ================= */
 async function loadColdBookmarks() {
     const coldList = document.getElementById('cold-list');
     const archiveBtn = document.getElementById('btn-archive-all');
@@ -438,26 +455,26 @@ async function loadColdBookmarks() {
     if (elapsedMs < THIRTY_DAYS_MS) {
         const installedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
         const remainingDays = Math.max(1, 30 - installedDays);
-        // 💡 优化点 3：计算进度百分比
         const percent = Math.min(100, Math.max(2, Math.round((installedDays / 30) * 100)));
+
+        const learningTitle = chrome.i18n.getMessage('learningTitle', [String(installedDays), '30']) || `⏳ Learning Your Habits (${installedDays}/30 Days)`;
+        const learningDesc = chrome.i18n.getMessage('learningDesc', [String(remainingDays)]) || `BookmarkFlow needs 30 days to observe your bookmark usage.<br>Cold vault recommendations will unlock in <strong>${remainingDays} day(s)</strong>.`;
 
         coldList.innerHTML = `
             <div class="empty-state">
                 <div style="font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 4px;">
-                    ⏳ Learning Your Habits (${installedDays}/30 Days)
+                    ${learningTitle}
                 </div>
-                <!-- 💡 优化点 3：增加可视化动画 Progress Bar -->
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" style="width: ${percent}%;"></div>
                 </div>
                 <div style="color: #64748b; font-size: 12px; line-height: 1.5; margin-top: 6px;">
-                    BookmarkFlow needs 30 days to observe your bookmark usage.<br>
-                    Cold vault recommendations will unlock in <strong>${remainingDays} day(s)</strong>.
+                    ${learningDesc}
                 </div>
             </div>
         `;
         archiveBtn.disabled = true;
-        archiveBtn.innerText = 'Learning in Progress...';
+        archiveBtn.innerText = chrome.i18n.getMessage('learningInProgress') || 'Learning in Progress...';
         return;
     }
 
@@ -474,11 +491,15 @@ async function loadColdBookmarks() {
         coldList.innerHTML = '';
 
         if (coldBookmarks.length === 0) {
-            coldList.innerHTML = '<div class="empty-state">🎉 Great! No unvisited bookmarks found in the last 30 days.</div>';
+            const noColdText = chrome.i18n.getMessage('noColdBookmarks') || '🎉 Great! No unvisited bookmarks found in the last 30 days.';
+            coldList.innerHTML = `<div class="empty-state">${noColdText}</div>`;
             archiveBtn.disabled = true;
-            archiveBtn.innerText = 'Move to Cold Vault';
+            archiveBtn.innerText = chrome.i18n.getMessage('moveToColdVault') || 'Move to Cold Vault';
             return;
         }
+
+        const protectedText = chrome.i18n.getMessage('protected') || '⭐ Protected';
+        const whitelistText = chrome.i18n.getMessage('whitelist') || '☆ Whitelist';
 
         coldBookmarks.forEach(bm => {
             const isWhitelisted = whitelist.includes(bm.id);
@@ -490,7 +511,7 @@ async function loadColdBookmarks() {
                 <div class="item-title" title="${bm.url}">${bm.title || bm.url}</div>
                 <div>
                   <button class="btn-small ${isWhitelisted ? 'pinned' : ''}" data-id="${bm.id}">
-                    ${isWhitelisted ? '⭐ Protected' : '☆ Whitelist'}
+                    ${isWhitelisted ? protectedText : whitelistText}
                   </button>
                 </div>
             `;
@@ -502,7 +523,7 @@ async function loadColdBookmarks() {
         });
 
         archiveBtn.disabled = coldBookmarkIds.length === 0;
-        archiveBtn.innerText = `Move ${coldBookmarkIds.length} Bookmarks to Cold Vault`;
+        archiveBtn.innerText = chrome.i18n.getMessage('moveXToColdVault', [String(coldBookmarkIds.length)]) || `Move ${coldBookmarkIds.length} Bookmarks to Cold Vault`;
     });
 }
 
@@ -523,11 +544,10 @@ function archiveColdBookmarks() {
     const archiveBtn = document.getElementById('btn-archive-all');
     if (!archiveBtn) return;
     archiveBtn.disabled = true;
-    archiveBtn.innerText = 'Archiving...';
+    archiveBtn.innerText = chrome.i18n.getMessage('archiving') || 'Archiving...';
 
     chrome.runtime.sendMessage({ action: 'archiveBookmarks', bookmarkIds: coldBookmarkIds }).then((response) => {
         if (response && response.status === 'success') {
-            alert(`Successfully moved ${coldBookmarkIds.length} cold bookmarks to Cold Vault!`);
             loadColdBookmarks().catch(console.error);
         }
     }).catch(console.error);

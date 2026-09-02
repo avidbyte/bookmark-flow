@@ -3,6 +3,7 @@
   "name": "BookmarkFlow - Smart LRU Bookmark Manager",
   "version": "1.0.0",
   "description": "Auto-decay clutter and keep your frequently used bookmarks flowing at your fingertips.",
+  "default_locale": "en",
   "permissions": [
     "bookmarks",
     "storage",

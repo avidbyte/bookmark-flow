@@ -8,13 +8,12 @@
 <body>
 <div class="header">
     <span class="title">🔥 BookmarkFlow</span>
-    <button id="open-dashboard" class="btn-dashboard" aria-label="Open Dashboard">⚙️ Dashboard</button>
+    <button id="open-dashboard" class="btn-dashboard" aria-label="Open Dashboard" data-i18n="dashboardBtn">⚙️ Dashboard</button>
 </div>
 
-<div class="section-title">Hot Bookmarks (Most Active)</div>
-<!-- 💡 修复 Element div is not allowed here：使用符合规范的 li 作为 placeholder -->
+<div class="section-title" data-i18n="hotBookmarksTitle">Hot Bookmarks (Most Active)</div>
 <ul id="hot-list">
-    <li class="empty">Analyzing your bookmarks...</li>
+    <li class="empty" data-i18n="analyzingText">Analyzing your bookmarks...</li>
 </ul>
 
 <script src="popup.js"></script>

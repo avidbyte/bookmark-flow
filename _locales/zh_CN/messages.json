@@ -20,12 +20,9 @@
   "noBookmarksFound": { "message": "未找到相关书签。" },
 
   "sortRulesTitle": { "message": "文件夹自动排序规则" },
-  "sortRulesDesc": { "message": "每小时及启动时，根据访问热度自动重新排列文件夹内的书签。" },
   "runSortNow": { "message": "立即执行重排" },
   "sorting": { "message": "排序中..." },
   "sortDone": { "message": "完成！" },
-  "modeA": { "message": "模式 A（排除法）：重排所有文件夹，【勾选的除外】" },
-  "modeB": { "message": "模式 B（包含法）：【仅重排】下方勾选的文件夹" },
   "filterFoldersPlaceholder": { "message": "🔍 输入名称筛选文件夹..." },
   "noFoldersFound": { "message": "未找到相关文件夹。" },
 

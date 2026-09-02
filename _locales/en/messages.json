@@ -20,12 +20,9 @@
   "noBookmarksFound": { "message": "No bookmarks found." },
 
   "sortRulesTitle": { "message": "Folder Auto-Sort Rules" },
-  "sortRulesDesc": { "message": "Auto-reorder bookmarks inside folders by pts hourly & on startup." },
   "runSortNow": { "message": "Run Sort Now" },
   "sorting": { "message": "Sorting..." },
   "sortDone": { "message": "Done!" },
-  "modeA": { "message": "Mode A (Exclude): Sort ALL folders, EXCEPT selected ones below" },
-  "modeB": { "message": "Mode B (Include): ONLY sort selected folders below" },
   "filterFoldersPlaceholder": { "message": "🔍 Filter folders by name..." },
   "noFoldersFound": { "message": "No folders found." },
 

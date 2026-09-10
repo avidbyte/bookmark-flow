@@ -141,12 +141,27 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     }
 });
 
-// ⚡ 5. 自动化文件夹重排核心逻辑（完美支持子文件夹隔离与同级绝对索引）
+// 递归计算文件夹及其所有子孙书签的点击量之和
+function getFolderTotalVisits(node, stats) {
+    if (node.url) {
+        return stats[node.id]?.visits || 0;
+    }
+    let total = 0;
+    if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+            total += getFolderTotalVisits(child, stats);
+        }
+    }
+    return total;
+}
+
+// ⚡ 5. 自动化文件夹重排核心逻辑
 async function autoSortFolders() {
     console.time('[BookmarkFlow] 重排总耗时');
     try {
-        const config = await chrome.storage.local.get(['sortMode', 'selectedFolders', 'bookmarkStats']);
+        const config = await chrome.storage.local.get(['sortMode', 'selectedFolders', 'bookmarkStats', 'includeFoldersInSort']);
         const mode = config.sortMode || 'exclude';
+        const includeFolders = Boolean(config.includeFoldersInSort); // 是否开启文件夹参与排序
         const folderIds = new Set(Array.isArray(config.selectedFolders) ? config.selectedFolders : []);
         const stats = config.bookmarkStats || {};
 
@@ -185,42 +200,78 @@ async function autoSortFolders() {
 
         console.log(`[Sort Engine] 找到 ${targetFolders.length} 个符合条件的文件夹待检测`);
 
-        // 2. 逐个文件夹独立重排（不跨层级、不混淆嵌套文件夹）
+        // 2. 逐个文件夹独立重排
         for (const folder of targetFolders) {
-            // 获取当前文件夹下的【所有直属子节点】（包含书签和子文件夹）
             const allChildren = await chrome.bookmarks.getChildren(folder.id);
             if (allChildren.length <= 1) continue;
 
-            // 检查当前文件夹中的直属书签是否有点击记录
-            const hasAnyVisits = allChildren.some(node => node.url && (stats[node.id]?.visits || 0) > 0);
-            if (!hasAnyVisits) {
-                continue; // 全无点击量，原封不动！
+            let finalSortedNodes = [];
+
+            if (includeFolders) {
+                // ==================== 【模式二】：文件夹参与重排 ====================
+                // 为了获取文件夹下所有嵌套子节点计算权重，需要拿到带有 children 的完整子树节点
+                const fullSubTree = await chrome.bookmarks.getSubTree(folder.id);
+                const childrenWithTree = fullSubTree[0]?.children || [];
+
+                // 检查直属或子代是否有任何点击记录
+                const hasAnyVisits = childrenWithTree.some(node => getFolderTotalVisits(node, stats) > 0);
+                if (!hasAnyVisits) continue;
+
+                // 计算每个节点（普通书签 或 文件夹）的综合权重（visits）
+                const indexedNodes = childrenWithTree.map((node, index) => ({
+                    node,
+                    originalIndex: index,
+                    visits: getFolderTotalVisits(node, stats)
+                }));
+
+                // 按点击量降序排序，点击量相同则保持原始相对顺序
+                indexedNodes.sort((a, b) => {
+                    if (b.visits !== a.visits) {
+                        return b.visits - a.visits;
+                    }
+                    return a.originalIndex - b.originalIndex;
+                });
+
+                finalSortedNodes = indexedNodes.map(item => item.node);
+
+            } else {
+                // ==================== 【模式一】：默认模式（锁定文件夹槽位，仅排序书签） ====================
+                // 检查直属书签是否有点击记录
+                const hasAnyVisits = allChildren.some(node => node.url && (stats[node.id]?.visits || 0) > 0);
+                if (!hasAnyVisits) continue;
+
+                const bookmarkNodes = [];
+                const bookmarkIndices = [];
+
+                // 提取直属书签及所在槽位索引
+                allChildren.forEach((node, index) => {
+                    if (node.url) {
+                        bookmarkNodes.push(node);
+                        bookmarkIndices.push(index);
+                    }
+                });
+
+                // 如果普通书签不足 2 个，无需重新排序
+                if (bookmarkNodes.length <= 1) continue;
+
+                // 对普通书签按点击量降序排列
+                bookmarkNodes.sort((a, b) => {
+                    const visitsA = stats[a.id]?.visits || 0;
+                    const visitsB = stats[b.id]?.visits || 0;
+                    return visitsB - visitsA;
+                });
+
+                // 将排序后的书签放回原数组（文件夹的原始 Index 完全锁定）
+                finalSortedNodes = [...allChildren];
+                bookmarkIndices.forEach((targetIndex, i) => {
+                    finalSortedNodes[targetIndex] = bookmarkNodes[i];
+                });
             }
 
-            // 给所有直属节点赋予【在父文件夹中的真实绝对索引 absoluteIndex】
-            const indexedNodes = allChildren.map((node, index) => ({
-                node,
-                absoluteIndex: index,
-                isBookmark: Boolean(node.url),
-                visits: node.url ? (stats[node.id]?.visits || 0) : -1 // 文件夹不参与热度排序
-            }));
-
-            // 排序策略：
-            // 1. 纯网址书签按点击量降序；
-            // 2. 点击量相同时（包含都为 0 次，或子文件夹），严格按 absoluteIndex 升序保持原始相对位置。
-            indexedNodes.sort((a, b) => {
-                if (b.visits !== a.visits) {
-                    return b.visits - a.visits;
-                }
-                return a.absoluteIndex - b.absoluteIndex;
-            });
-
-            const sortedNodes = indexedNodes.map(item => item.node);
-
-            // 检查整体顺序是否改变
+            // 3. 检查整体顺序是否有改变
             let isAlreadySorted = true;
             for (let i = 0; i < allChildren.length; i++) {
-                if (allChildren[i].id !== sortedNodes[i].id) {
+                if (allChildren[i].id !== finalSortedNodes[i].id) {
                     isAlreadySorted = false;
                     break;
                 }
@@ -228,11 +279,11 @@ async function autoSortFolders() {
 
             if (isAlreadySorted) continue;
 
-            console.log(`[Sort Engine] 正在对文件夹进行安全重排: "${folder.title}" (ID: ${folder.id})`);
+            console.log(`[Sort Engine] 正在重排: "${folder.title}" (模式: ${includeFolders ? '文件夹参与' : '文件夹固定'})`);
 
-            // 倒序安全移动所有节点，保证绝对索引精确对齐（包括子文件夹与书签的相对位置）
-            for (let i = sortedNodes.length - 1; i >= 0; i--) {
-                const node = sortedNodes[i];
+            // 4. 倒序安全移动节点，确保 Index 精准
+            for (let i = finalSortedNodes.length - 1; i >= 0; i--) {
+                const node = finalSortedNodes[i];
                 try {
                     await chrome.bookmarks.move(node.id, {
                         parentId: folder.id,

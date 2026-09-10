@@ -297,21 +297,38 @@ function initAllDataToggle() {
 /* ================= 2. ⚡ 文件夹重排配置逻辑 ================= */
 async function initFolderSortSettings() {
     const radios = document.querySelectorAll('input[name="sortMode"]');
+    const includeFoldersChk = document.getElementById('chk-include-folders');
 
-    const config = await chrome.storage.local.get(['sortMode', 'selectedFolders']);
+    // 读取存储配置
+    const config = await chrome.storage.local.get(['sortMode', 'selectedFolders', 'includeFoldersInSort']);
     const savedMode = config.sortMode || 'exclude';
     const selectedArray = Array.isArray(config.selectedFolders) ? config.selectedFolders : [];
     const selectedFolders = new Set(selectedArray);
 
+    // 绑定“文件夹参与排序”复选框配置
+    if (includeFoldersChk) {
+        // @ts-ignore
+        includeFoldersChk.checked = Boolean(config.includeFoldersInSort);
+        includeFoldersChk.addEventListener('change', async (e) => {
+            const target = e.target;
+            // @ts-ignore
+            await chrome.storage.local.set({ includeFoldersInSort: target.checked });
+        });
+    }
+
+    // 绑定模式单选框
     radios.forEach(r => {
         const input = r;
+        // @ts-ignore
         input.checked = (input.value === savedMode);
         input.addEventListener('change', async (e) => {
             const target = e.target;
+            // @ts-ignore
             await chrome.storage.local.set({ sortMode: target.value });
         });
     });
 
+    // 加载文件夹树结构
     chrome.bookmarks.getTree(tree => {
         allCustomFolders = [];
         function traverse(node, pathArr = []) {

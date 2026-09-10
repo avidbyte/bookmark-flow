@@ -49,5 +49,11 @@
   "coldVaultDescSuffix": { "message": "未访问的书签（排除白名单）" },
   "sortRulesDesc": { "message": "根据使用频率自动重新排列书签（每小时及启动时执行）。" },
   "modeA": { "message": "<b>排序所有文件夹</b>（自动跳过下方勾选的文件夹）" },
-  "modeB": { "message": "<b>仅排序指定文件夹</b>（仅处理下方勾选的文件夹）" }
+  "modeB": { "message": "<b>仅排序指定文件夹</b>（仅处理下方勾选的文件夹）" },
+  "includeFoldersLabel": {
+    "message": "允许文件夹参与排序"
+  },
+  "includeFoldersDesc": {
+    "message": "（文件夹的权重等于其内部所有书签的点击量之和）"
+  }
 }

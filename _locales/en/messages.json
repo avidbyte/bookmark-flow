@@ -49,5 +49,11 @@
   "coldVaultDescSuffix": { "message": "(excluding Whitelisted)" },
   "sortRulesDesc": { "message": "Automatically sort bookmarks by usage frequency (hourly & on browser startup)." },
   "modeA": { "message": "<b>Sort ALL folders</b> (Skip checked folders below)" },
-  "modeB": { "message": "<b>ONLY sort selected</b> (Ignore unchecked folders)" }
+  "modeB": { "message": "<b>ONLY sort selected</b> (Ignore unchecked folders)" },
+  "includeFoldersLabel": {
+    "message": "Allow folders to participate in sorting"
+  },
+  "includeFoldersDesc": {
+    "message": "(Folder score = sum of all bookmarks inside)"
+  }
 }

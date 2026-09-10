@@ -73,6 +73,17 @@
             <button id="btn-run-sort" class="btn-action" data-i18n="runSortNow">Run Sort Now</button>
         </div>
 
+        <!-- ⚡ 文件夹参与排序开关（支持 i18n） -->
+        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #e2e8f0;">
+            <label class="radio-label" style="cursor: pointer;">
+                <input type="checkbox" id="chk-include-folders">
+                <span>
+                    <b data-i18n="includeFoldersLabel">Allow folders to participate in sorting</b>
+                    <span style="color: #64748b; font-size: 12px;" data-i18n="includeFoldersDesc">(Folder score = sum of all bookmarks inside)</span>
+                </span>
+            </label>
+        </div>
+
         <div class="radio-group">
             <label class="radio-label">
                 <input type="radio" name="sortMode" value="exclude" checked>
